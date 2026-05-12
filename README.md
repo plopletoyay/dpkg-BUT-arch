@@ -152,7 +152,7 @@ pacman
 After installation, additional customization can be done in:
 
 ```bash
-/usr/local/bin/apt
+/usr/local/bin/apt or apt config
 ```
 
 This is the wrapper file itself.

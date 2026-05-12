@@ -9,6 +9,7 @@ GREEN_256='\e[38;5;82m'
 NC='\033[0m'
 
 TARGET="/usr/local/bin/apt"
+CONF_FILE="/etc/apt-wrapper.conf"
 SOURCE_URL="https://raw.githubusercontent.com/plopletoyay/dpkg-BUT-arch/refs/heads/main/apt"
 
 show_banner() {
@@ -37,13 +38,50 @@ show_disclaimer() {
     echo -e "${RED}==============================================================${NC}"
 }
 
+setup_config() {
+
+    if [ -f "$CONF_FILE" ]; then
+        echo -e "\n${BLUE}Existing configuration found.${NC}"
+        printf "Do you want to use previous settings? (y/n): "
+        read reuse_cfg
+        if [[ "$reuse_cfg" =~ ^[Yy]$ ]]; then
+            echo -e "${GREEN_256}Using existing config.${NC}"
+            return 0
+        fi
+    fi
+
+    echo -e "\n${BLUE}--- Configuration Setting ---${NC}"
+    echo -e "This wrapper contains many redundant warnings for dangerous commands."
+    echo -e "Do you want to remove those warnings (Enable Silent Mode)?"
+    echo -e "${RED}Notice:${NC} Do you want to removing warnings? removing warnings can be dangerous. We are not responsible for any system damage."
+    echo -e "You can modify this configuration anytime by using the command: ${BLUE}apt config${NC}"
+    
+    while true; do
+        printf "Please type (yes/no): "
+        read cfg_input
+        if [ "$cfg_input" == "yes" ]; then
+            echo "SILENT_MODE=true" | sudo tee "$CONF_FILE" > /dev/null
+            echo -e "${RED}Silent Mode enabled. Warnings removed.${NC}"
+            break
+        elif [ "$cfg_input" == "no" ]; then
+            echo "SILENT_MODE=false" | sudo tee "$CONF_FILE" > /dev/null
+            echo -e "${GREEN_256}Standard Mode enabled. Warnings will be shown.${NC}"
+            break
+        else
+            echo -e "${RED}Invalid input. You must type 'yes' or 'no' exactly.${NC}"
+        fi
+    done
+}
+
 do_install() {
     sudo rm -f "$TARGET"
     echo -e "\nInstalling..."
     sudo curl -L "$SOURCE_URL" -o "$TARGET"
     if [ -f "$TARGET" ]; then
         sudo chmod +x "$TARGET"
-        echo -e "${GREEN_256}Installation Successful.${NC}"
+        setup_config
+        echo -e "${GREEN_256}Process Successful.${NC}"
+        echo -e "Use 'apt help' to get started."
     else
         echo -e "${RED}Installation failed.${NC}"
         sudo rm -f "$TARGET"
@@ -54,14 +92,12 @@ do_install() {
 while true; do
     clear
     show_banner
-    
     sleep 0.5
-
     show_disclaimer
     echo ""
     echo -e "What would you like to do?"
     echo " 1) Install"
-    echo " 2) Remove"
+    echo " 2) Disable (Remove Script)"
     echo " 3) Repair"
     echo " 4) Cancel"
     printf "Choose a number (1/2/3/4): "
@@ -83,7 +119,7 @@ while true; do
             fi
             ;;
         2)
-            printf "Do you want to remove? (y/n): "
+            printf "Do you want to disable 'apt' wrapper? (y/n): "
             read r1
             if [[ ! "$r1" =~ ^[Yy]$ ]]; then continue; fi
 
@@ -92,7 +128,7 @@ while true; do
             if [[ "$r2" =~ ^[Yy]$ ]]; then
                 if [ -f "$TARGET" ]; then
                     sudo rm -f "$TARGET"
-                    echo -e "${GREEN_256}Remove Successful.${NC}"
+                    echo -e "${GREEN_256}Wrapper disabled. (Configuration file kept, you can use 'apt config' if re-installed)${NC}"
                     break
                 else
                     echo -e "${RED}Error: apt is not installed.${NC}"
@@ -107,18 +143,19 @@ while true; do
             read rep1
             if [[ ! "$rep1" =~ ^[Yy]$ ]]; then continue; fi
 
-            printf "Are you sure now? (All apt configs will be reset. Please save your file: $TARGET) (y/n): "
+            printf "Are you sure now? (y/n): "
             read rep2
             if [[ ! "$rep2" =~ ^[Yy]$ ]]; then continue; fi
 
             printf "Did you backup your apt config file? (Yes/No): "
             read rep3
             if [[ "$rep3" == "Yes" ]]; then
+                sudo rm -f "$CONF_FILE"
                 do_install
                 echo -e "${GREEN_256}Repair Successful.${NC}"
                 break
             elif [[ "$rep3" == "No" ]]; then
-                echo -e "Please backup your file at: ($TARGET)"
+                echo -e "Please backup your config using 'apt config' or save the file at: ($CONF_FILE)"
                 sleep 3
                 continue
             else
@@ -132,16 +169,12 @@ while true; do
             read can1
             if [[ "$can1" =~ ^[Yy]$ ]]; then
                 echo "Exiting..."
-                sleep 1
-                clear
-                exit 0
+                sleep 1; clear; exit 0
             else
                 continue
             fi
             ;;
         *)
-            echo "Invalid choice."
-            sleep 1
-            ;;
+            echo "Invalid choice."; sleep 1 ;;
     esac
 done

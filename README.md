@@ -1,104 +1,255 @@
-# dpkg-BUT-arch (apt-wrapper)
+# `dpkg-BUT-arch`
 
-**dpkg-BUT-arch** is a comprehensive Bash-based command-line utility and wrapper layer designed to provide the familiar Debian/Ubuntu `apt` syntax for Arch Linux users. By acting as a logic-driven bridge, it translates standardized `apt` commands into their corresponding `pacman` and `yay` operations, allowing for a seamless transition for developers and system administrators migrating from the Debian ecosystem.
+A fake Debian-style `apt` wrapper for Arch-based Linux distributions.
 
----
+Official repository:
 
-## ⚠️ CRITICAL DISCLAIMER & OPERATIONAL SAFETY
+[https://github.com/plopletoyay/dpkg-BUT-arch](https://github.com/plopletoyay/dpkg-BUT-arch)
 
-### 1. The Learning Curve for New Arch Users
-While this tool provides convenience, it is **STRONGLY ADVISED** that beginners do not use this as their primary method of package management. Arch Linux is a rolling-release distribution that requires a fundamental understanding of its native tools. Relying solely on an `apt` wrapper may prevent you from learning how to properly maintain your system, handle `.pacnew` files, or troubleshoot dependency cycles. We recommend using `pacman` and `yay` directly for at least a few weeks before adopting this wrapper.
+This project imitates Debian/Ubuntu package-management commands while actually using Arch Linux tools underneath such as `pacman` and `yay`.
 
-### 2. Command Severity and Risk Assessment
-Users must exercise extreme caution when using this tool, as certain commands are mapped to "aggressive" Arch Linux flags to remain consistent with expected `apt` behavior:
-*   **The Purge Command:** When you execute `sudo apt purge [package]`, the wrapper executes `sudo pacman -Rcns [package]`. 
-    *   This operation is significantly more powerful than a standard removal. It will recursively remove the target package, its global configuration files, and all dependencies that are not explicitly required by other installed software. 
-    *   **Potential Danger:** If you do not carefully review the transaction list before hitting 'Y', you might accidentally remove essential shared libraries or desktop environment components.
+# `apt` Wrapper for Arch-based Systems
 
----
+> **Not recommended to use `apt` as your main package manager.**
+>
+> If you are a beginner, it is better to learn and switch between **`pacman`** and **`yay`** first so you understand how Arch package management works.
 
-## 🛠️ IN-DEPTH COMMAND EXPLANATIONS & LOGIC
+## Important Warning
 
-This wrapper does not simply rename commands; it includes internal logic to determine the best source for your software needs, spanning across Official Repositories and the Arch User Repository (AUR).
+Use `apt` with care.
+Some commands can be very destructive. For example, `sudo apt purge` maps to a much stronger removal action similar in spirit to `sudo pacman -Rcns`.
 
-### A. Advanced Package Management
-*   **`apt install [package_name]`**: 
-    The script utilizes a fallback logic system. It first attempts to locate and install the package from the Official Arch Repositories using `pacman`. If the package is not found (exit code non-zero), it immediately initiates a search and build process via `yay` for the **AUR**. This allows you to install software like `google-chrome` or `visual-studio-code-bin` as if they were native packages.
-*   **`apt remove [package_name]`**: 
-    This command uninstalls specified software. The wrapper is designed to identify whether the package was installed via the official repos or the AUR and handles the removal process accordingly.
-*   **`apt purge [package_name]`**: 
-    As mentioned in the warning, this is the "Deep Clean" mode. It is designed to leave no trace of the software, removing everything from binaries to system-wide configuration files.
-*   **`apt autoremove`**: 
-    A maintenance essential. It runs `pacman -Qdtq` to identify "orphans"—packages that were once needed as dependencies but are now useless. It then purges them to keep your disk space optimized.
+This wrapper is made to **simulate familiar Debian/Ubuntu-style `apt` commands** on Arch-based systems. It is not the real `apt`. It is simply a **command alias / command-name wrapper** that lets you type `apt`, `yay`, or `pacman` in a more familiar way.
 
-### B. System Maintenance & Synchronization
-*   **`apt update`**: 
-    Synchronizes the local package database with the remote mirrors. It ensures your system knows about the latest versions available without actually performing an upgrade.
-*   **`apt full-upgrade` / `apt dist-upgrade`**: 
-    The most critical commands for a rolling release. These trigger a full system synchronization (`-Syu`). If `yay` is detected on the system, it will prioritize it to ensure that both your official system packages and your AUR-installed software are updated simultaneously.
-*   **`apt clean` / `apt autoclean`**: 
-    These commands target the `/var/cache/pacman/pkg/` directory. They remove cached `.tar.zst` files to reclaim gigabytes of storage space, especially useful after long periods of system updates.
+## What this project does
 
-### C. Information & Diagnostic Tools
-*   **`apt search [query]`**: 
-    Provides a unified search experience. It queries both the official repositories and the AUR, presenting a combined list of results so you can choose the best version of the software you are looking for.
-*   **`apt show [package]`**: 
-    Displays verbose metadata. This includes the version number, build date, total install size, and a full list of required dependencies and optional dependencies.
-*   **`apt depends` / `rdepends`**: 
-    Technical tools for troubleshooting. `depends` shows what a package needs to run, while `rdepends` (Reverse Dependencies) shows which other installed packages will break if you remove the target package.
+This project provides an `apt` wrapper that translates common `apt` commands into equivalent Arch-style actions.
+It is designed for learning, convenience, and experimentation.
 
----
+The wrapper can work with:
 
-## 📥 INSTALLATION PROCEDURES
+* `pacman`
+* `yay`
+* AUR-related package lookups
 
-### Method 1: The Automated Installer (Recommended)
-We provide a streamlined `install.sh` script that handles all technical requirements, including pathing and binary permissions.
+## Command behavior overview
+
+### `apt install`
+
+`apt install` will search and install packages from both:
+
+* the official `pacman` repositories
+* AUR-related package sources handled through `yay`
+
+This means the wrapper tries to make installation feel more like `apt`, while still using Arch package ecosystems underneath.
+
+### `apt remove`
+
+`apt remove` will look for the target program in both:
+
+* AUR packages
+* `pacman` packages
+
+It is intended to provide a more unified removal experience across both package sources.
+
+### `apt purge`
+
+`apt purge` is the most aggressive removal form.
+It should be used carefully because it is designed to remove the package and related leftover data more deeply than a normal remove operation.
+
+### `apt help` / `apt --help`
+
+After installation, you can use:
+
 ```bash
-curl -O [https://raw.githubusercontent.com/plopletoyay/dpkg-BUT-arch/main/install.sh](https://raw.githubusercontent.com/plopletoyay/dpkg-BUT-arch/main/install.sh)
-sudo bash install.sh
+apt
+apt help
+apt --help
+```
 
-Method 2: Manual Installation (Step-by-Step)
+to see available options and command usage.
 
-For users who prefer full control over their /usr/local/bin/ directory, you can install the wrapper manually. Please follow these steps precisely:
+## Available commands
 
-    Navigate to the apt file within this GitHub repository.
+This wrapper mainly translates Debian-style `apt` commands into Arch Linux `pacman` / `yay` commands.
 
-    Copy the entire source code found inside the apt wrapper file.
+| apt command              | Equivalent command                        |
+| ------------------------ | ----------------------------------------- |
+| `apt update`             | `pacman -Sy`                              |
+| `apt upgrade`            | `pacman -Su`                              |
+| `apt full-upgrade`       | `yay -Syu` or `pacman -Syu`               |
+| `apt dist-upgrade`       | `yay -Syu` or `pacman -Syu`               |
+| `apt install <pkg>`      | `pacman -S <pkg>` or `yay -S <pkg>`       |
+| `apt remove <pkg>`       | `pacman -R <pkg>` or `yay -R <pkg>`       |
+| `apt purge <pkg>`        | `pacman -Rcns <pkg>` or `yay -Rcns <pkg>` |
+| `apt autoremove`         | `pacman -Rs $(pacman -Qdtq)`              |
+| `apt search <pkg>`       | `yay -Ss <pkg>` or `pacman -Ss <pkg>`     |
+| `apt show <pkg>`         | `pacman -Si <pkg>` or `yay -Si <pkg>`     |
+| `apt list --installed`   | `pacman -Q`                               |
+| `apt list --upgradeable` | `yay -Qu` or `pacman -Qu`                 |
+| `apt clean`              | `pacman -Sc`                              |
+| `apt autoclean`          | `pacman -Sc`                              |
+| `apt depends <pkg>`      | `pacman -Qi <pkg>`                        |
+| `apt rdepends <pkg>`     | `pacman -Qi <pkg>`                        |
+| `apt download <pkg>`     | `pacman -Sw <pkg>`                        |
+| `apt edit-sources`       | `nano /etc/pacman.d/mirrorlist`           |
+| `apt source <pkg>`       | Suggests `asp export <pkg>` or `abs`      |
 
-    Open your terminal and create a new file: nano apt.
+## Notes about package handling
 
-    Paste the copied code into this file and save it (Ctrl+O, Enter, Ctrl+X).
+### `apt install`
 
-    Move the newly created binary to your system's executable path:
-    Bash
+The wrapper first checks official `pacman` repositories.
+If the package does not exist there, it tries installing through `yay` using the AUR.
 
-    sudo mv apt /usr/local/bin/
+This means `apt install` can use:
 
-    Set the mandatory execution permissions to allow the shell to run the script:
-    Bash
-
-    sudo chmod +x /usr/local/bin/apt
-
+* official Arch repositories
+* AUR packages
 
 ---
 
-## ⚙️ CUSTOMIZATION & CONFIGURATION
+### `apt remove`
 
-The power of this wrapper lies in its simplicity. Once installed, the primary logic file is located at `/usr/local/bin/apt`. Advanced users are encouraged to open this file to modify specific flags according to their personal preference (for instance, changing the default behavior of the `remove` command).
+The wrapper also checks both:
 
-> [!IMPORTANT]
-> **Configuration Documentation:** 
-> Please be advised that the internal logic of the script is written for high performance and minimal overhead. Consequently, **there are no descriptive comments within the code** explaining individual functions or variables. You should possess a stable understanding of Bash scripting and `pacman` flags before attempting to modify the core logic.
+* official packages
+* AUR packages
+
+before removing the target package.
 
 ---
 
-## 🚀 POST-INSTALLATION & USAGE
+### `apt purge`
 
-Once the installation is finalized, you can verify that the wrapper is correctly recognized by your shell environment by invoking the help menu. You can use any of the following commands to view the manual and usage tips:
+This command is powerful and should be used carefully.
 
-*   `apt`
-*   `apt help`
-*   `apt --help`
+It maps to:
 
-### Final Technical Note
-This project is an **alias and logic wrapper system**. It does not modify your core system****
+```bash
+pacman -Rcns
+```
+
+which can remove:
+
+* packages
+* configs
+* dependencies
+* orphaned related packages
+
+---
+
+### Unknown commands
+
+If the wrapper does not recognize a command, it forwards the arguments directly into:
+
+```bash
+pacman
+```
+
+## Configuration
+
+After installation, additional customization can be done in:
+
+```bash
+/usr/local/bin/apt
+```
+
+This is the wrapper file itself.
+You can edit it to change behavior, adjust mappings, or tailor command handling.
+
+### Important note about the config
+
+The configuration does **not** explain every setting in detail.
+There is no built-in explanation showing which line does what, so if you want to customize it manually, you must inspect the wrapper code directly.
+
+If you install manually, you must copy the code from the source file yourself.
+
+## Installation methods
+
+### 1) Install automatically
+
+Clone the repository:
+
+```bash
+git clone https://github.com/plopletoyay/dpkg-BUT-arch.git
+cd dpkg-BUT-arch
+```
+
+Then install the wrapper using the provided method from the repository.
+
+Depending on your setup, this may involve copying the wrapper into:
+
+```bash
+/usr/local/bin/apt
+```
+
+and making it executable.
+
+Example:
+
+```bash
+sudo chmod +x /usr/local/bin/apt
+```
+
+### 2) Install manually
+
+If you prefer manual installation, copy the code from the source file and place it in the wrapper path yourself.
+
+Basic idea:
+
+1. Open the source file.
+2. Copy the code.
+3. Save it as `/usr/local/bin/apt`.
+4. Make it executable.
+
+Example:
+
+```bash
+sudo nano /usr/local/bin/apt
+sudo chmod +x /usr/local/bin/apt
+```
+
+## After installation
+
+When installation is finished, use one of these commands:
+
+```bash
+apt
+apt help
+apt --help
+```
+
+That will show the wrapper usage and available options.
+
+## Design goal
+
+This project is only meant to **rename and imitate package manager commands**.
+It is not a replacement for learning real Arch package management.
+It simply gives a familiar interface for users who are used to Debian-style commands.
+
+It can be used with:
+
+* `apt`
+* `yay`
+* `pacman`
+
+## Recommended usage
+
+* Learn `pacman` first
+* Use `yay` for AUR packages
+* Use this wrapper only as a convenience layer
+* Be careful with destructive commands like `purge`
+
+## Notes
+
+* This wrapper is for convenience and learning.
+* Some commands may behave differently from real Debian `apt`.
+* Always check what a command will do before confirming it.
+* Use at your own risk.
+
+---
+
+## Command Reference
+
+> Paste your full command list here later, and I will turn it into a complete polished README section with explanations for every command.

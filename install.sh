@@ -16,14 +16,14 @@ show_banner() {
     echo -e "${BLUE}"
     echo "  ____  ____  _  _______      __                   "
     echo " |  _ \|  _ \| |/ / ____|      \ \      Format: dpkg-wrapper      "
-    echo " | | | | |_) | ' / |  _         \ \      Status: Ready             "
-    echo " | |_| |  __/| . \ |_| |         \ \      Target: $TARGET            "
-    echo " |____/|_|   |_|\_\____|          \_\                              "
-    echo "  ___ _   _ ____ _____  _    _     _                               "
-    echo " |_ _| \ | / ___|_   _|/ \  | |   | |                              "
-    echo "  | ||  \| \___ \ | | / _ \ | |   | |                              "
+    echo " | | | | |_) | ' / |  _          \ \      Status: Ready             "
+    echo " | |_| |  __/| . \ |_| |          \ \      Target: $TARGET            "
+    echo " |____/|_|   |_|\_\____|           \_\                              "
+    echo "  ___ _   _ ____ _____  _    _     _                                "
+    echo " |_ _| \ | / ___|_   _|/ \  | |   | |                                "
+    echo "  | ||  \| \___ \ | | / _ \ | |   | |                                "
     echo "  | || |\  |___) || |/ ___ \| |___| |___                            "
-    echo " |___|_| \_|____/ |_/_/   \_\_____|_____|                          "
+    echo " |___|_| \_|____/ |_/_/   \_\_____|_____|                            "
     echo -e "${NC}"
 }
 
@@ -39,7 +39,6 @@ show_disclaimer() {
 }
 
 setup_config() {
-
     if [ -f "$CONF_FILE" ]; then
         echo -e "\n${BLUE}Existing configuration found.${NC}"
         printf "Do you want to use previous settings? (y/n): "
@@ -97,7 +96,7 @@ while true; do
     echo ""
     echo -e "What would you like to do?"
     echo " 1) Install"
-    echo " 2) Disable (Remove Script)"
+    echo " 2) Remove"
     echo " 3) Repair"
     echo " 4) Cancel"
     printf "Choose a number (1/2/3/4): "
@@ -119,16 +118,17 @@ while true; do
             fi
             ;;
         2)
-            printf "Do you want to disable 'apt' wrapper? (y/n): "
+            printf "Do you want to remove 'apt' wrapper and config? (y/n): "
             read r1
             if [[ ! "$r1" =~ ^[Yy]$ ]]; then continue; fi
 
             printf "Are you sure now? (y/n): "
             read r2
             if [[ "$r2" =~ ^[Yy]$ ]]; then
-                if [ -f "$TARGET" ]; then
+                if [ -f "$TARGET" ] || [ -f "$CONF_FILE" ]; then
                     sudo rm -f "$TARGET"
-                    echo -e "${GREEN_256}Wrapper disabled. (Configuration file kept, you can use 'apt config' if re-installed)${NC}"
+                    sudo rm -f "$CONF_FILE"
+                    echo -e "${GREEN_256}Wrapper and Configuration file removed successfully.${NC}"
                     break
                 else
                     echo -e "${RED}Error: apt is not installed.${NC}"
@@ -147,14 +147,14 @@ while true; do
             read rep2
             if [[ ! "$rep2" =~ ^[Yy]$ ]]; then continue; fi
 
-            printf "Did you backup your apt config file? (Yes/No): "
+            printf "Did you backup your apt config file? (yes/no): "
             read rep3
-            if [[ "$rep3" == "Yes" ]]; then
+            if [[ "$rep3" == "yes" ]]; then
                 sudo rm -f "$CONF_FILE"
                 do_install
                 echo -e "${GREEN_256}Repair Successful.${NC}"
                 break
-            elif [[ "$rep3" == "No" ]]; then
+            elif [[ "$rep3" == "no" ]]; then
                 echo -e "Please backup your config using 'apt config' or save the file at: ($CONF_FILE)"
                 sleep 3
                 continue

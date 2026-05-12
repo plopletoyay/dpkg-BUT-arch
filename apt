@@ -1,9 +1,8 @@
 #!/bin/bash
 
 if [ -z "$1" ] || [[ "$1" == "help" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
-    echo -e "\e[1;34mHOW YOU USE DPKG IN ARCH?\e[0m"
+    echo -e "\e[1;34mHOW DO YOU USE DPKG IN ARCH?\e[0m"
     echo -e "Usage: \e[33mapt [command]\e[0m or \e[33msudo apt [command]\e[0m\n"
-    
     echo -e "\e[1;32mMAINTENANCE COMMANDS (Requires sudo):\e[0m"
     echo -e "  \e[33msudo apt update\e[0m            Refresh package lists from servers (does not upgrade)."
     echo -e "  \e[33msudo apt upgrade\e[0m           Upgrade installed packages without removing any existing ones."
@@ -12,22 +11,19 @@ if [ -z "$1" ] || [[ "$1" == "help" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--he
     echo -e "  \e[33msudo apt clean\e[0m             Remove all cached package files (.tar.zst) to free up space."
     echo -e "  \e[33msudo apt autoclean\e[0m         Remove only outdated cached package files."
     echo -e "  \e[33msudo apt edit-sources\e[0m      Edit your Arch Linux mirrorlist file."
-    
     echo -e "\n\e[1;32mPACKAGE MANAGEMENT (Requires sudo):\e[0m"
     echo -e "  \e[33msudo apt install [pkg]\e[0m    Download and install a new package with its dependencies."
-    echo -e "  \e[33msudo apt remove [pkg]\e[0m     Uninstall a package while keeping its configuration files."
-    echo -e "  \e[33msudo apt purge [pkg]\e[0m      Completely remove a package and all global configurations."
+    echo -e "  \e[33msudo apt remove [pkg]\e[0m      Uninstall a package while keeping its configuration files."
+    echo -e "  \e[33msudo apt purge [pkg]\e[0m       Completely remove a package and all global configurations."
     echo -e "  \e[33msudo apt autoremove\e[0m        Search for and remove orphan packages no longer needed."
-    echo -e "  \e[33msudo apt download [pkg]\e[0m   Download the package file only (do not install)."
-    
+    echo -e "  \e[33msudo apt download [pkg]\e[0m    Download the package file only (do not install)."
     echo -e "\n\e[1;32mINFORMATION & SEARCH (No sudo required):\e[0m"
-    echo -e "  \e[33mapt search [query]\e[0m       Search for packages by name or description in repositories."
-    echo -e "  \e[33mapt show [pkg]\e[0m           Display detailed info: version, size, deps, and description."
-    echo -e "  \e[33mapt list --installed\e[0m     Show a complete list of every package installed on this system."
-    echo -e "  \e[33mapt list --upgradeable\e[0m   List all packages that have a newer version available."
-    echo -e "  \e[33mapt depends [pkg]\e[0m        Show raw dependency information for a package."
-    echo -e "  \e[33mapt rdepends [pkg]\e[0m       Show reverse dependency information (what needs this pkg)."
-    
+    echo -e "  \e[33mapt search [query]\e[0m        Search for packages by name or description in repositories."
+    echo -e "  \e[33mapt show [pkg]\e[0m            Display detailed info: version, size, deps, and description."
+    echo -e "  \e[33mapt list --installed\e[0m      Show a complete list of every package installed on this system."
+    echo -e "  \e[33mapt list --upgradeable\e[0m    List all packages that have a newer version available."
+    echo -e "  \e[33mapt depends [pkg]\e[0m         Show raw dependency information for a package."
+    echo -e "  \e[33mapt rdepends [pkg]\e[0m        Show reverse dependency information (what needs this pkg)."
     echo -e "\n\e[1;31mTIP:\e[0m In Arch Linux, always use \e[1msudo apt full-upgrade\e[0m to keep your system healthy."
     exit 0
 fi
@@ -35,18 +31,43 @@ fi
 case "$1" in
   update)
     shift
-    exec pacman -Sy "$@"
+    echo -e "\e[1;31mWARNING: You are trying to use 'apt update'.\e[0m"
+    echo -e "\e[1;31mThis command is potentially dangerous for Arch (it runs 'pacman -Sy').\e[0m"
+    read -p "Confirm execution? (y/n): " check1
+    if [[ ! "$check1" =~ ^[Yy]$ ]]; then
+        echo -e "\e[1;31mCanceled: Safe choice! Use 'sudo apt full-upgrade' instead.\e[0m"
+        exit 1
+    fi
+    echo -e "\n\e[1;31mATTENTION: Do you really know what you are doing?\e[0m"
+    echo -e "\e[1;31m1) I know what I'm doing\e[0m"
+    echo -e "\e[1;31m2) Sorry, wrong command\e[0m"
+    read -p "Select an option (1-2): " check2
+    if [[ "$check2" != "1" ]]; then
+        echo -e "\e[1;31mCanceled: Wise decision.\e[0m"
+        exit 1
+    fi
+    echo -e "\n\e[1;31mFINAL WARNING: This command can lead to a broken system (Partial Upgrade).\e[0m"
+    echo -e "\e[1;31mArch Linux is NOT Ubuntu. We are NOT responsible if your system breaks.\e[0m"
+    echo -e "\e[1;31mPlease type exactly: i known what i'm doing now\e[0m"
+    read -p "Your answer: " check3
+    if [[ "$check3" == "i known what i'm doing now" ]]; then
+        echo -e "\n\e[1;31mProceeding with pacman -Sy...\e[0m\n"
+        exec sudo pacman -Sy "$@"
+    else
+        echo -e "\n\e[1;31mOperation canceled.\e[0m"
+        exit 1
+    fi
     ;;
   upgrade)
     shift
-    exec pacman -Su "$@"
+    exec sudo pacman -Su "$@"
     ;;
   full-upgrade|dist-upgrade)
     shift
     if command -v yay > /dev/null 2>&1; then
         exec yay -Syu "$@"
     else
-        exec pacman -Syu "$@"
+        exec sudo pacman -Syu "$@"
     fi
     ;;
   install)
@@ -64,82 +85,80 @@ case "$1" in
   remove|purge)
     action="$1"
     shift
+    if [[ "$action" == "purge" ]]; then
+        echo -e "\e[1;31mWARNING: You are trying to use 'apt purge'.\e[0m"
+        echo -e "\e[1;31mThis will recursively remove packages and ALL configurations.\e[0m"
+        read -p "Confirm purge? (y/n): " p1
+        if [[ ! "$p1" =~ ^[Yy]$ ]]; then exit 1; fi
+        echo -e "\n\e[1;31m1) I know the risks, purge it\e[0m"
+        echo -e "\e[1;31m2) Wait, let me check again\e[0m"
+        read -p "Choice: " p2
+        if [[ "$p2" != "1" ]]; then exit 1; fi
+        echo -e "\e[1;31mPlease type exactly: i known what i'm doing now\e[0m"
+        read -p "Your answer: " p3
+        if [[ "$p3" != "i known what i'm doing now" ]]; then exit 1; fi
+    fi
     for pkg in "$@"; do
         if pacman -Qq "$pkg" > /dev/null 2>&1; then
             [ "$action" == "purge" ] && sudo pacman -Rcns "$pkg" || sudo pacman -R "$pkg"
         elif command -v yay > /dev/null 2>&1; then
             [ "$action" == "purge" ] && yay -Rcns "$pkg" || yay -R "$pkg"
-        else
-            echo "E: Package '$pkg' not found"
         fi
     done
     ;;
   autoremove)
     shift
-    UNUSED=$(pacman -Qdtq)
-    if [ -n "$UNUSED" ]; then
-      exec pacman -Rs $UNUSED "$@"
+    echo -e "\e[1;31mWARNING: This will remove orphan packages that are no longer needed.\e[0m"
+    echo -e "\e[1;31m1) ok i understand\e[0m"
+    echo -e "\e[1;31m2) sorry wrong command\e[0m"
+    read -p "Enter choice: " auto_check
+    if [[ "$auto_check" == "1" ]]; then
+        UNUSED=$(pacman -Qdtq)
+        if [ -n "$UNUSED" ]; then
+            exec sudo pacman -Rs $UNUSED "$@"
+        else
+            echo "Nothing to autoremove."
+        fi
     else
-      echo "Nothing to autoremove."
-    fi
-    ;;
-  search)
-    shift
-    if command -v yay > /dev/null 2>&1; then
-        exec yay -Ss "$@"
-    else
-        exec pacman -Ss "$@"
-    fi
-    ;;
-  show)
-    shift
-    if pacman -Si "$1" > /dev/null 2>&1; then
-        exec pacman -Si "$@"
-    elif command -v yay > /dev/null 2>&1; then
-        exec yay -Si "$@"
-    else
-        echo "E: Package '$1' not found"
-    fi
-    ;;
-  list)
-    shift
-    if [[ "$1" == "--installed" ]]; then
-      exec pacman -Q
-    elif [[ "$1" == "--upgradeable" ]]; then
-      if command -v yay > /dev/null 2>&1; then
-          exec yay -Qu
-      else
-          exec pacman -Qu
-      fi
-    else
-      exec pacman -Sl
+        exit 1
     fi
     ;;
   clean|autoclean)
+    cmd_name="$1"
     shift
-    exec pacman -Sc "$@"
+    echo -e "\e[1;31mWARNING: '$cmd_name' will remove old installation files.\e[0m"
+    echo -e "\e[1;31mIf the system or apps fail, there will be no backup to repair or reinstall.\e[0m"
+    echo -e "\e[1;31m1) i known what i'm doing now\e[0m"
+    echo -e "\e[1;31m2) sorry worng command\e[0m"
+    read -p "Select an option (1-2): " clean_check
+    if [[ "$clean_check" == "1" ]]; then
+        exec sudo pacman -Sc "$@"
+    else
+        exit 1
+    fi
     ;;
   edit-sources)
-    sudo nano /etc/pacman.d/mirrorlist
+    echo -e "\e[1;31mThis command is for Advanced Users/Developers only.\e[0m"
+    echo -e "\e[1;31mIt allows modification of system mirrorlists.\e[0m"
+    echo -e "\e[1;33m- Yes i'm Developer\e[0m"
+    echo -e "\e[1;33m- Yes i'm Advanced User!\e[0m"
+    echo -e "\e[1;32m- No i'm just normal user\e[0m"
+    echo -e "\e[1;34m(You can type 'Yes i'm Developer' or 'Yes i'm Advanced User!')\e[0m"
+    read -p "Identify yourself: " dev_check
+    if [[ "$dev_check" == "Yes i'm Developer" ]] || [[ "$dev_check" == "Yes i'm Advanced User!" ]]; then
+        sudo nano /etc/pacman.d/mirrorlist
+    else
+        echo "Access Denied."
+        exit 1
+    fi
     ;;
-  depends)
+  search) shift; if command -v yay > /dev/null 2>&1; then exec yay -Ss "$@"; else exec pacman -Ss "$@"; fi ;;
+  show) shift; exec pacman -Si "$@" ;;
+  list)
     shift
-    exec pacman -Qi "$@" | grep "Depends On"
+    if [[ "$1" == "--installed" ]]; then exec pacman -Q
+    elif [[ "$1" == "--upgradeable" ]]; then exec pacman -Qu
+    else exec pacman -Sl; fi
     ;;
-  rdepends)
-    shift
-    exec pacman -Qi "$@" | grep "Required By"
-    ;;
-  download)
-    shift
-    exec pacman -Sw "$@"
-    ;;
-  source)
-    shift
-    echo "Tip: On Arch, use 'asp export <pkg>' or 'abs' for sources."
-    ;;
-  *)
-    exec pacman "$@"
-    ;;
+  *) exec pacman "$@" ;;
 esac
-

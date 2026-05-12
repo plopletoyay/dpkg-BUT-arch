@@ -174,22 +174,7 @@ Clone the repository:
 ```bash
 git clone https://github.com/plopletoyay/dpkg-BUT-arch.git
 cd dpkg-BUT-arch
-```
-
-Then install the wrapper using the provided method from the repository.
-
-Depending on your setup, this may involve copying the wrapper into:
-
-```bash
-/usr/local/bin/apt
-```
-
-and making it executable.
-
-Example:
-
-```bash
-sudo chmod +x /usr/local/bin/apt
+./install.sh
 ```
 
 ### 2) Install manually
@@ -198,7 +183,7 @@ If you prefer manual installation, copy the code from the source file and place 
 
 Basic idea:
 
-1. Open the source file.
+1. Open the source file : https://raw.githubusercontent.com/plopletoyay/dpkg-BUT-arch/refs/heads/main/apt
 2. Copy the code.
 3. Save it as `/usr/local/bin/apt`.
 4. Make it executable.

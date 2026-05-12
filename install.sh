@@ -9,7 +9,7 @@ GREEN_256='\e[38;5;82m'
 NC='\033[0m'
 
 TARGET="/usr/local/bin/apt"
-SOURCE_URL="https://raw.githubusercontent.com/plopletoyay/dpkg-BUT-arch/blob/main/apt"
+SOURCE_URL="https://github.com/plopletoyay/dpkg-BUT-arch/blob/main/apt"
 
 show_banner() {
     echo -e "${BLUE}"

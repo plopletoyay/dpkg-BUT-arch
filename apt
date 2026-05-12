@@ -48,9 +48,9 @@ case "$1" in
     fi
     echo -e "\n\e[1;31mFINAL WARNING: This command can lead to a broken system (Partial Upgrade).\e[0m"
     echo -e "\e[1;31mArch Linux is NOT Ubuntu. We are NOT responsible if your system breaks.\e[0m"
-    echo -e "\e[1;31mPlease type exactly: i known what i'm doing now\e[0m"
+    echo -e "\e[1;31mPlease type exactly: i know what i'm doing now\e[0m"
     read -p "Your answer: " check3
-    if [[ "$check3" == "i known what i'm doing now" ]]; then
+    if [[ "$check3" == "i know what i'm doing now" ]]; then
         echo -e "\n\e[1;31mProceeding with pacman -Sy...\e[0m\n"
         exec sudo pacman -Sy "$@"
     else
@@ -58,10 +58,12 @@ case "$1" in
         exit 1
     fi
     ;;
+
   upgrade)
     shift
     exec sudo pacman -Su "$@"
     ;;
+
   full-upgrade|dist-upgrade)
     shift
     if command -v yay > /dev/null 2>&1; then
@@ -70,18 +72,27 @@ case "$1" in
         exec sudo pacman -Syu "$@"
     fi
     ;;
+
   install)
     shift
     for pkg in "$@"; do
-        if pacman -Sp "$pkg" > /dev/null 2>&1; then
+        # เช็คด้วย -Si เพื่อความเร็ว ไม่ต้องโหลด URI ใหม่
+        if pacman -Si "$pkg" > /dev/null 2>&1; then
             sudo pacman -S "$pkg"
         elif command -v yay > /dev/null 2>&1; then
+            echo -e "\e[33mPackage '$pkg' not found in official repos. Searching AUR...\e[0m"
             yay -S "$pkg"
         else
-            echo "E: Unable to locate package $pkg"
+            echo -e "\e[1;31mE: Unable to locate package $pkg\e[0m"
         fi
     done
     ;;
+
+  download)
+    shift
+    exec sudo pacman -Sw "$@"
+    ;;
+
   remove|purge)
     action="$1"
     shift
@@ -94,9 +105,9 @@ case "$1" in
         echo -e "\e[1;31m2) Wait, let me check again\e[0m"
         read -p "Choice: " p2
         if [[ "$p2" != "1" ]]; then exit 1; fi
-        echo -e "\e[1;31mPlease type exactly: i known what i'm doing now\e[0m"
+        echo -e "\e[1;31mPlease type exactly: i know what i'm doing now\e[0m"
         read -p "Your answer: " p3
-        if [[ "$p3" != "i known what i'm doing now" ]]; then exit 1; fi
+        if [[ "$p3" != "i know what i'm doing now" ]]; then exit 1; fi
     fi
     for pkg in "$@"; do
         if pacman -Qq "$pkg" > /dev/null 2>&1; then
@@ -106,6 +117,7 @@ case "$1" in
         fi
     done
     ;;
+
   autoremove)
     shift
     echo -e "\e[1;31mWARNING: This will remove orphan packages that are no longer needed.\e[0m"
@@ -123,13 +135,14 @@ case "$1" in
         exit 1
     fi
     ;;
+
   clean|autoclean)
     cmd_name="$1"
     shift
     echo -e "\e[1;31mWARNING: '$cmd_name' will remove old installation files.\e[0m"
     echo -e "\e[1;31mIf the system or apps fail, there will be no backup to repair or reinstall.\e[0m"
-    echo -e "\e[1;31m1) i known what i'm doing now\e[0m"
-    echo -e "\e[1;31m2) sorry worng command\e[0m"
+    echo -e "\e[1;31m1) i know what i'm doing now\e[0m"
+    echo -e "\e[1;31m2) sorry wrong command\e[0m"
     read -p "Select an option (1-2): " clean_check
     if [[ "$clean_check" == "1" ]]; then
         exec sudo pacman -Sc "$@"
@@ -137,6 +150,7 @@ case "$1" in
         exit 1
     fi
     ;;
+
   edit-sources)
     echo -e "\e[1;31mThis command is for Advanced Users/Developers only.\e[0m"
     echo -e "\e[1;31mIt allows modification of system mirrorlists.\e[0m"
@@ -152,13 +166,32 @@ case "$1" in
         exit 1
     fi
     ;;
+
   search) shift; if command -v yay > /dev/null 2>&1; then exec yay -Ss "$@"; else exec pacman -Ss "$@"; fi ;;
   show) shift; exec pacman -Si "$@" ;;
+  
+  depends)
+    shift
+    for pkg in "$@"; do
+        echo -e "\e[1;32mDependencies for $pkg:\e[0m"
+        pacman -Si "$pkg" | grep "Depends On"
+    done
+    ;;
+
+  rdepends)
+    shift
+    for pkg in "$@"; do
+        echo -e "\e[1;32mRequired By (Reverse Deps) for $pkg:\e[0m"
+        pacman -Qi "$pkg" | grep "Required By"
+    done
+    ;;
+
   list)
     shift
     if [[ "$1" == "--installed" ]]; then exec pacman -Q
     elif [[ "$1" == "--upgradeable" ]]; then exec pacman -Qu
     else exec pacman -Sl; fi
     ;;
+
   *) exec pacman "$@" ;;
 esac

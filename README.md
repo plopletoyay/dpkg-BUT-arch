@@ -233,12 +233,6 @@ It can be used with:
 * Always check what a command will do before confirming it.
 * Use at your own risk.
 
----
-
-## Command Reference
-
-> Paste your full command list here later, and I will turn it into a complete polished README section with explanations for every command.
-
 
 ---
 

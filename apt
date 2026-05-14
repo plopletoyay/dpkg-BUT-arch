@@ -3,6 +3,14 @@
 CONF_FILE="/etc/apt-wrapper.conf"
 [ -f "$CONF_FILE" ] && source "$CONF_FILE" || SILENT_MODE=false
 
+run_yay() {
+    if [[ $EUID -eq 0 && -n "${SUDO_USER:-}" ]]; then
+        sudo -u "$SUDO_USER" yay "$@"
+    else
+        yay "$@"
+    fi
+}
+
 if [ -z "$1" ] || [[ "$1" == "help" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     echo -e "\e[1;34mHOW DO YOU USE DPKG IN ARCH?\e[0m"
     echo -e "Usage: \e[33mapt [command]\e[0m or \e[33msudo apt [command]\e[0m\n"
@@ -69,7 +77,7 @@ case "$1" in
   full-upgrade|dist-upgrade)
     shift
     if command -v yay > /dev/null 2>&1; then
-        exec yay -Syu "$@"
+        exec run_yay -Syu "$@"
     else
         exec sudo pacman -Syu "$@"
     fi
@@ -82,7 +90,7 @@ case "$1" in
             sudo pacman -S "$pkg"
         elif command -v yay > /dev/null 2>&1; then
             echo -e "\e[33mPackage '$pkg' not found in official repos. Searching AUR...\e[0m"
-            yay -S "$pkg"
+            run_yay -S "$pkg"
         else
             echo -e "\e[1;31mE: Unable to locate package $pkg\e[0m"
         fi
@@ -116,7 +124,9 @@ case "$1" in
         if pacman -Qq "$pkg" > /dev/null 2>&1; then
             [ "$action" == "purge" ] && sudo pacman -Rcns "$pkg" || sudo pacman -R "$pkg"
         elif command -v yay > /dev/null 2>&1; then
-            [ "$action" == "purge" ] && yay -Rcns "$pkg" || yay -R "$pkg"
+            [ "$action" == "purge" ] && run_yay -Rcns "$pkg" || run_yay -R "$pkg"
+        else
+            echo -e "\e[1;31mE: Package '$pkg' not found.\e[0m"
         fi
     done
     ;;
@@ -130,7 +140,7 @@ case "$1" in
         read -p "Enter choice: " auto_check
         [[ "$auto_check" != "1" ]] && exit 1
     fi
-    UNUSED=$(pacman -Qdtq)
+    UNUSED=$(pacman -Qdtq 2>/dev/null)
     if [ -n "$UNUSED" ]; then
         exec sudo pacman -Rs $UNUSED "$@"
     else
@@ -138,11 +148,23 @@ case "$1" in
     fi
     ;;
 
-  clean|autoclean)
-    cmd_name="$1"
+  clean)
     shift
     if [ "$SILENT_MODE" = false ]; then
-        echo -e "\e[1;31mWARNING: '$cmd_name' will remove old installation files.\e[0m"
+        echo -e "\e[1;31mWARNING: 'clean' will remove ALL cached package files.\e[0m"
+        echo -e "\e[1;31mIf the system or apps fail, there will be no backup to repair.\e[0m"
+        echo -e "\e[1;31m1) i know what i'm doing now\e[0m"
+        echo -e "\e[1;31m2) sorry wrong command\e[0m"
+        read -p "Select an option (1-2): " clean_check
+        [[ "$clean_check" != "1" ]] && exit 1
+    fi
+    exec sudo pacman -Scc "$@"
+    ;;
+
+  autoclean)
+    shift
+    if [ "$SILENT_MODE" = false ]; then
+        echo -e "\e[1;31mWARNING: 'autoclean' will remove outdated cached package files.\e[0m"
         echo -e "\e[1;31mIf the system or apps fail, there will be no backup to repair.\e[0m"
         echo -e "\e[1;31m1) i know what i'm doing now\e[0m"
         echo -e "\e[1;31m2) sorry wrong command\e[0m"
@@ -163,7 +185,7 @@ case "$1" in
             exit 1
         fi
     fi
-    sudo nano /etc/pacman.d/mirrorlist
+    sudo "${EDITOR:-nano}" /etc/pacman.d/mirrorlist
     ;;
 
   config)
@@ -178,7 +200,7 @@ case "$1" in
     esac
     ;;
 
-  search) shift; if command -v yay > /dev/null 2>&1; then exec yay -Ss "$@"; else exec pacman -Ss "$@"; fi ;;
+  search) shift; if command -v yay > /dev/null 2>&1; then exec run_yay -Ss "$@"; else exec pacman -Ss "$@"; fi ;;
   show) shift; exec pacman -Si "$@" ;;
   depends) shift; for pkg in "$@"; do echo -e "\e[1;32mDeps for $pkg:\e[0m"; pacman -Si "$pkg" | grep "Depends On"; done ;;
   rdepends) shift; for pkg in "$@"; do echo -e "\e[1;32mRequired By $pkg:\e[0m"; pacman -Qi "$pkg" | grep "Required By"; done ;;

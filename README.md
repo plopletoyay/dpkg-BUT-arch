@@ -238,3 +238,24 @@ It can be used with:
 ## Command Reference
 
 > Paste your full command list here later, and I will turn it into a complete polished README section with explanations for every command.
+
+
+---
+
+# License
+
+Licensed under the GNU General Public License v3.0.
+
+SPDX identifier:
+
+```text id="6jv8ni"
+GNU General Public License v3.0
+```
+
+---
+
+# Author
+
+Created by `plopletoyay`
+
+"Keep It Simple, Stupid."

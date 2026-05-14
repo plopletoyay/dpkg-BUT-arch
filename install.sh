@@ -1,6 +1,5 @@
 #!/bin/bash
 
-chmod +x "$0" 2>/dev/null
 clear
 
 RED='\033[0;31m'
@@ -20,7 +19,7 @@ show_banner() {
     echo " | |_| |  __/| . \ |_| |          \ \      Target: $TARGET            "
     echo " |____/|_|   |_|\_\____|           \_\                              "
     echo "  ___ _   _ ____ _____  _    _     _                                "
-    echo " |_ _| \ | / ___|_   _|/ \  | |   | |                                "
+    echo " |_ _| \ | / ___|_   _|/ \  | \   | |                                "
     echo "  | ||  \| \___ \ | | / _ \ | |   | |                                "
     echo "  | || |\  |___) || |/ ___ \| |___| |___                            "
     echo " |___|_| \_|____/ |_/_/   \_\_____|_____|                            "
@@ -38,11 +37,30 @@ show_disclaimer() {
     echo -e "${RED}==============================================================${NC}"
 }
 
+check_deps() {
+    if ! command -v curl > /dev/null 2>&1; then
+        echo -e "${RED}[!] 'curl' is required but not installed.${NC}"
+        echo -e "    Install it with: ${BLUE}sudo pacman -S curl${NC}"
+        exit 1
+    fi
+}
+
+check_internet() {
+    if ! curl -s --max-time 5 --head "https://github.com" > /dev/null 2>&1; then
+        echo -e "${RED}[!] No internet connection detected. Cannot proceed.${NC}"
+        exit 1
+    fi
+}
+
+is_installed() {
+    [ -f "$TARGET" ]
+}
+
 setup_config() {
     if [ -f "$CONF_FILE" ]; then
         echo -e "\n${BLUE}Existing configuration found.${NC}"
         printf "Do you want to use previous settings? (y/n): "
-        read reuse_cfg
+        read -r reuse_cfg
         if [[ "$reuse_cfg" =~ ^[Yy]$ ]]; then
             echo -e "${GREEN_256}Using existing config.${NC}"
             return 0
@@ -52,12 +70,12 @@ setup_config() {
     echo -e "\n${BLUE}--- Configuration Setting ---${NC}"
     echo -e "This wrapper contains many redundant warnings for dangerous commands."
     echo -e "Do you want to remove those warnings (Enable Silent Mode)?"
-    echo -e "${RED}Notice:${NC} Do you want to removing warnings? removing warnings can be dangerous. We are not responsible for any system damage."
+    echo -e "${RED}Notice:${NC} Removing warnings can be dangerous. We are not responsible for any system damage."
     echo -e "You can modify this configuration anytime by using the command: ${BLUE}apt config${NC}"
-    
+
     while true; do
         printf "Please type (yes/no): "
-        read cfg_input
+        read -r cfg_input
         if [ "$cfg_input" == "yes" ]; then
             echo "SILENT_MODE=true" | sudo tee "$CONF_FILE" > /dev/null
             echo -e "${RED}Silent Mode enabled. Warnings removed.${NC}"
@@ -73,26 +91,77 @@ setup_config() {
 }
 
 do_install() {
-    sudo rm -f "$TARGET"
-    echo -e "\nInstalling..."
-    sudo curl -L "$SOURCE_URL" -o "$TARGET"
-    if [ -f "$TARGET" ]; then
-        sudo chmod +x "$TARGET"
-        setup_config
-        echo -e "${GREEN_256}Process Successful.${NC}"
-        echo -e "Use 'apt help' to get started."
-    else
-        echo -e "${RED}Installation failed.${NC}"
-        sudo rm -f "$TARGET"
+    local tmp_file
+    tmp_file=$(mktemp /tmp/apt-wrapper.XXXXXX)
+
+    echo -e "\nChecking internet connection..."
+    check_internet
+
+    echo -e "Downloading..."
+    if ! curl -fsSL "$SOURCE_URL" -o "$tmp_file"; then
+        echo -e "${RED}[!] Download failed. Check your connection or the source URL.${NC}"
+        rm -f "$tmp_file"
         exit 1
     fi
+
+    if [ ! -s "$tmp_file" ]; then
+        echo -e "${RED}[!] Downloaded file is empty. Aborting.${NC}"
+        rm -f "$tmp_file"
+        exit 1
+    fi
+
+    if ! head -1 "$tmp_file" | grep -q "^#!.*bash"; then
+        echo -e "${RED}[!] Downloaded file does not appear to be a valid bash script. Aborting.${NC}"
+        rm -f "$tmp_file"
+        exit 1
+    fi
+
+    sudo mv "$tmp_file" "$TARGET"
+    sudo chmod +x "$TARGET"
+
+    setup_config
+
+    echo -e "${GREEN_256}Installation successful.${NC}"
+    echo -e "Use 'apt help' to get started."
+}
+
+do_remove() {
+    if ! is_installed && [ ! -f "$CONF_FILE" ]; then
+        echo -e "${RED}[!] apt is not installed.${NC}"
+        sleep 2
+        return 1
+    fi
+    sudo rm -f "$TARGET"
+    sudo rm -f "$CONF_FILE"
+    echo -e "${GREEN_256}Wrapper and configuration file removed successfully.${NC}"
+    return 0
+}
+
+do_repair() {
+    check_deps
+
+    if [ -f "$CONF_FILE" ]; then
+        local backup_path="/tmp/apt-wrapper.conf.bak"
+        sudo cp "$CONF_FILE" "$backup_path"
+        echo -e "${BLUE}[*] Config backed up to: ${backup_path}${NC}"
+        sudo rm -f "$CONF_FILE"
+    fi
+
+    do_install
+    echo -e "${GREEN_256}Repair successful.${NC}"
 }
 
 while true; do
     clear
     show_banner
-    sleep 0.5
     show_disclaimer
+
+    if is_installed; then
+        echo -e " Status: ${GREEN_256}Installed${NC} ($TARGET)"
+    else
+        echo -e " Status: ${RED}Not installed${NC}"
+    fi
+
     echo ""
     echo -e "What would you like to do?"
     echo " 1) Install"
@@ -100,73 +169,55 @@ while true; do
     echo " 3) Repair"
     echo " 4) Cancel"
     printf "Choose a number (1/2/3/4): "
-    read action
+    read -r action
 
     case $action in
         1)
+            if is_installed; then
+                echo -e "\n${BLUE}[*] apt is already installed. This will reinstall it.${NC}"
+            fi
+
             printf "Do you want to install? (y/n): "
-            read c1
-            if [[ ! "$c1" =~ ^[Yy]$ ]]; then continue; fi
-            
+            read -r c1
+            [[ ! "$c1" =~ ^[Yy]$ ]] && continue
+
             printf "Are you sure now? (y/n): "
-            read c2
-            if [[ "$c2" =~ ^[Yy]$ ]]; then
-                do_install
-                break
-            else
-                continue
-            fi
+            read -r c2
+            [[ ! "$c2" =~ ^[Yy]$ ]] && continue
+
+            check_deps
+            do_install
+            break
             ;;
+
         2)
-            printf "Do you want to remove 'apt' wrapper and config? (y/n): "
-            read r1
-            if [[ ! "$r1" =~ ^[Yy]$ ]]; then continue; fi
+            printf "Do you want to remove the 'apt' wrapper and config? (y/n): "
+            read -r r1
+            [[ ! "$r1" =~ ^[Yy]$ ]] && continue
 
             printf "Are you sure now? (y/n): "
-            read r2
-            if [[ "$r2" =~ ^[Yy]$ ]]; then
-                if [ -f "$TARGET" ] || [ -f "$CONF_FILE" ]; then
-                    sudo rm -f "$TARGET"
-                    sudo rm -f "$CONF_FILE"
-                    echo -e "${GREEN_256}Wrapper and Configuration file removed successfully.${NC}"
-                    break
-                else
-                    echo -e "${RED}Error: apt is not installed.${NC}"
-                    sleep 2
-                fi
-            else
-                continue
-            fi
+            read -r r2
+            [[ ! "$r2" =~ ^[Yy]$ ]] && continue
+
+            do_remove && break
             ;;
+
         3)
-            printf "Do you want to repair? (Apt config will be reset) (y/n): "
-            read rep1
-            if [[ ! "$rep1" =~ ^[Yy]$ ]]; then continue; fi
+            printf "Do you want to repair? (Config will be reset and auto-backed up) (y/n): "
+            read -r rep1
+            [[ ! "$rep1" =~ ^[Yy]$ ]] && continue
 
             printf "Are you sure now? (y/n): "
-            read rep2
-            if [[ ! "$rep2" =~ ^[Yy]$ ]]; then continue; fi
+            read -r rep2
+            [[ ! "$rep2" =~ ^[Yy]$ ]] && continue
 
-            printf "Did you backup your apt config file? (yes/no): "
-            read rep3
-            if [[ "$rep3" == "yes" ]]; then
-                sudo rm -f "$CONF_FILE"
-                do_install
-                echo -e "${GREEN_256}Repair Successful.${NC}"
-                break
-            elif [[ "$rep3" == "no" ]]; then
-                echo -e "Please backup your config using 'apt config' or save the file at: ($CONF_FILE)"
-                sleep 3
-                continue
-            else
-                echo "Invalid input. Please type 'Yes' or 'No'."
-                sleep 2
-                continue
-            fi
+            do_repair
+            break
             ;;
+
         4)
             printf "Do you want to cancel? (y/n): "
-            read can1
+            read -r can1
             if [[ "$can1" =~ ^[Yy]$ ]]; then
                 echo "Exiting..."
                 sleep 1; clear; exit 0
@@ -174,7 +225,10 @@ while true; do
                 continue
             fi
             ;;
+
         *)
-            echo "Invalid choice."; sleep 1 ;;
+            echo "Invalid choice."
+            sleep 1
+            ;;
     esac
 done
